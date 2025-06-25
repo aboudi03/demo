@@ -1,7 +1,6 @@
 package com.example.demo.entity;
 
 import jakarta.persistence.*;
-import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -17,8 +16,8 @@ public class User {
 
     private String role; // HR, IT, Manager, etc.
 
-    @OneToMany(mappedBy = "assignee")
-    private List<Task> tasks;
+    @Column(name = "first_name", nullable = false)
+    private String firstName;
 
     // Getters and setters
     public Long getId() { return id; }
@@ -29,6 +28,6 @@ public class User {
     public void setPassword(String password) { this.password = password; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
-    public List<Task> getTasks() { return tasks; }
-    public void setTasks(List<Task> tasks) { this.tasks = tasks; }
+    public String getFirstName() { return firstName; }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
 } 

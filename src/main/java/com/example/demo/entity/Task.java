@@ -12,7 +12,7 @@ public class Task {
 
     @ManyToOne
     @JoinColumn(name = "assignee_id")
-    private User assignee;
+    private Employee assignee;
 
     @ManyToOne
     @JoinColumn(name = "process_id")
@@ -23,8 +23,8 @@ public class Task {
     public void setId(Long id) { this.id = id; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
-    public User getAssignee() { return assignee; }
-    public void setAssignee(User assignee) { this.assignee = assignee; }
+    public Employee getAssignee() { return assignee; }
+    public void setAssignee(Employee assignee) { this.assignee = assignee; }
     public EmployeeOnboardingProcess getProcess() { return process; }
     public void setProcess(EmployeeOnboardingProcess process) { this.process = process; }
 } 

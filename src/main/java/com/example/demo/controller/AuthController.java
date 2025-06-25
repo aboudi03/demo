@@ -1,117 +1,97 @@
 package com.example.demo.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.demo.entity.*;
+import com.example.demo.repository.*;
+import com.example.demo.security.JwtUtil;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
-import com.example.demo.entity.User;
-import com.example.demo.entity.Task;
-import com.example.demo.entity.EmployeeOnboardingProcess;
-import com.example.demo.repository.UserRepository;
-import com.example.demo.repository.TaskRepository;
-import com.example.demo.repository.EmployeeOnboardingProcessRepository;
-import com.example.demo.security.JwtUtil;
-
 @RestController
+@RequestMapping("/auth")
+@RequiredArgsConstructor          // <<–– replaces @Autowired boilerplate
 public class AuthController {
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    private final AuthenticationManager             authenticationManager;
+    private final JwtUtil                           jwtUtil;
+    private final UserRepository                    userRepository;
+    private final EmployeeRepository                employeeRepository;
+    private final TaskRepository                    taskRepository;
+    private final EmployeeOnboardingProcessRepository onboardingRepo;
 
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private EmployeeOnboardingProcessRepository onboardingRepo;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private TaskRepository taskRepository;
-
-    // Login endpoint
-    @PostMapping("/auth/login")
-    public LoginResponse login(@RequestBody LoginRequest request) {
+    /* ---------- LOGIN ---------- */
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+                    new UsernamePasswordAuthenticationToken(request.username(), request.password())
             );
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            String token = jwtUtil.generateToken(userDetails.getUsername());
-            return new LoginResponse(token);
-        } catch (AuthenticationException e) {
-            throw new RuntimeException("Invalid username or password");
+            User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+            String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+            Map<String, Object> response = new HashMap<>();
+            response.put("access_token", token);
+            response.put("user", Map.of(
+                    "id", user.getId(),
+                    "role", user.getRole(),
+                    "first_name", user.getFirstName()
+            ));
+            return ResponseEntity.ok(response);
+        } catch (BadCredentialsException e) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid username or password"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
 
-    // Show all onboarding processes (protected)
-    @GetMapping("/onboarding")
-    public List<Long> showOnboarding() {
-        return onboardingRepo.findAll().stream().map(p -> p.getId()).collect(Collectors.toList());
-    }
-
-    // Admin starts onboarding process
-    @PostMapping("/start-onboarding")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public String startOnboarding() {
-        // Find users by role
-        User hr = userRepository.findByRole("HR").stream().findFirst().orElse(null);
-        User it = userRepository.findByRole("IT").stream().findFirst().orElse(null);
-        User manager = userRepository.findByRole("MANAGER").stream().findFirst().orElse(null);
-        User employee = userRepository.findByRole("EMPLOYEE").stream().findFirst().orElse(null);
-        User admin = userRepository.findByRole("ADMIN").stream().findFirst().orElse(null);
-
-        EmployeeOnboardingProcess process = new EmployeeOnboardingProcess();
-        onboardingRepo.save(process);
-
-        // Create 5 tasks and assign to users
-        Task t1 = new Task(); t1.setDescription("HR paperwork"); t1.setAssignee(hr); t1.setProcess(process);
-        Task t2 = new Task(); t2.setDescription("IT setup"); t2.setAssignee(it); t2.setProcess(process);
-        Task t3 = new Task(); t3.setDescription("Manager orientation"); t3.setAssignee(manager); t3.setProcess(process);
-        Task t4 = new Task(); t4.setDescription("Employee self-onboarding"); t4.setAssignee(employee); t4.setProcess(process);
-        Task t5 = new Task(); t5.setDescription("Admin approval"); t5.setAssignee(admin); t5.setProcess(process);
-
-        onboardingRepo.save(process); // Save process first to get ID
-        // Save tasks
-        taskRepository.save(t1);
-        taskRepository.save(t2);
-        taskRepository.save(t3);
-        taskRepository.save(t4);
-        taskRepository.save(t5);
-
-        return "Onboarding process started with 5 tasks.";
-    }
-
-    // Authenticated user sees only their tasks
+    /* ---------- EVERY AUTHENTICATED USER ---------- */
     @GetMapping("/my-tasks")
-    public List<String> myTasks(Authentication authentication) {
-        User user = userRepository.findByUsername(authentication.getName()).orElse(null);
-        if (user == null) return List.of();
-        return user.getTasks().stream().map(Task::getDescription).collect(Collectors.toList());
+    public List<String> myTasks(Authentication auth) {
+        System.out.println("[DEBUG] Authenticated user: " + auth.getName());
+        System.out.println("[DEBUG] Authorities: " + auth.getAuthorities());
+
+        return taskRepository.findAllByAssigneeUserUsername(auth.getName())
+                             .stream()
+                             .map(Task::getDescription)
+                             .collect(Collectors.toList());
     }
 
-    // DTOs
-    public static class LoginRequest {
-        private String username;
-        private String password;
-        public String getUsername() { return username; }
-        public void setUsername(String username) { this.username = username; }
-        public String getPassword() { return password; }
-        public void setPassword(String password) { this.password = password; }
+    /* ---------- DTOs ---------- */
+    public record LoginRequest(String username, String password) {}
+    
+    /* ---------- TEMPORARY DEBUG ENDPOINT ---------- */
+    @GetMapping("/generate-hash")
+    public Map<String, String> generateHash() {
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        String hash = encoder.encode("admin");
+        return Map.of(
+            "password", "admin",
+            "hash", hash,
+            "verification", String.valueOf(encoder.matches("admin", hash))
+        );
     }
-    public static class LoginResponse {
-        private String token;
-        public LoginResponse(String token) { this.token = token; }
-        public String getToken() { return token; }
-        public void setToken(String token) { this.token = token; }
+
+    /* ---------- AUTH TEST ENDPOINT ---------- */
+    @GetMapping("/test-auth")
+    public Map<String, Object> testAuth(Authentication auth) {
+        System.out.println("[DEBUG] Test auth endpoint called");
+        System.out.println("[DEBUG] Authenticated user: " + (auth != null ? auth.getName() : "null"));
+        System.out.println("[DEBUG] Authorities: " + (auth != null ? auth.getAuthorities() : "null"));
+        
+        return Map.of(
+            "authenticated", auth != null,
+            "username", auth != null ? auth.getName() : "null",
+            "authorities", auth != null ? auth.getAuthorities().toString() : "null"
+        );
     }
-} 
+}
