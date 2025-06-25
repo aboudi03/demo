@@ -54,18 +54,6 @@ public class AuthController {
         }
     }
 
-    /* ---------- EVERY AUTHENTICATED USER ---------- */
-    @GetMapping("/my-tasks")
-    public List<String> myTasks(Authentication auth) {
-        System.out.println("[DEBUG] Authenticated user: " + auth.getName());
-        System.out.println("[DEBUG] Authorities: " + auth.getAuthorities());
-
-        return taskRepository.findAllByAssigneeUserUsername(auth.getName())
-                             .stream()
-                             .map(Task::getDescription)
-                             .collect(Collectors.toList());
-    }
-
     /* ---------- DTOs ---------- */
     public record LoginRequest(String username, String password) {}
     
