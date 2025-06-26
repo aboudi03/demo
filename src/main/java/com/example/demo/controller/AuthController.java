@@ -10,12 +10,10 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/auth")
@@ -25,9 +23,6 @@ public class AuthController {
     private final AuthenticationManager             authenticationManager;
     private final JwtUtil                           jwtUtil;
     private final UserRepository                    userRepository;
-    private final EmployeeRepository                employeeRepository;
-    private final TaskRepository                    taskRepository;
-    private final EmployeeOnboardingProcessRepository onboardingRepo;
 
     /* ---------- LOGIN ---------- */
     @PostMapping("/login")
