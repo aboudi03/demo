@@ -29,11 +29,11 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.username(), request.password())
+                    new UsernamePasswordAuthenticationToken(request.email(), request.password())
             );
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
-            String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+            User user = userRepository.findByEmail(userDetails.getUsername()).orElseThrow();
+            String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
             Map<String, Object> response = new HashMap<>();
             response.put("access_token", token);
             response.put("user", Map.of(
@@ -43,14 +43,14 @@ public class AuthController {
             ));
             return ResponseEntity.ok(response);
         } catch (BadCredentialsException e) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid username or password"));
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password"));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", "Internal server error"));
         }
     }
 
     /* ---------- DTOs ---------- */
-    public record LoginRequest(String username, String password) {}
+    public record LoginRequest(String email, String password) {}
     
     /* ---------- TEMPORARY DEBUG ENDPOINT ---------- */
     @GetMapping("/generate-hash")
@@ -73,7 +73,7 @@ public class AuthController {
         
         return Map.of(
             "authenticated", auth != null,
-            "username", auth != null ? auth.getName() : "null",
+            "email", auth != null ? auth.getName() : "null",
             "authorities", auth != null ? auth.getAuthorities().toString() : "null"
         );
     }

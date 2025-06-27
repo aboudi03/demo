@@ -18,11 +18,11 @@ public class JwtUtil {
     }
 
     /** 
-     * Generate a JWT token for a given username and role.
+     * Generate a JWT token for a given email and role.
      */
-    public String generateToken(String username, String role) {
+    public String generateToken(String email, String role) {
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(email)
                 .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
@@ -31,9 +31,9 @@ public class JwtUtil {
     }
 
     /**
-     * Extract username (subject) from a JWT token.
+     * Extract email (subject) from a JWT token.
      */
-    public String getUsernameFromToken(String token) {
+    public String getEmailFromToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()

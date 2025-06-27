@@ -26,7 +26,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
         String token = null;
-        String username = null;
+        String email = null;
 
         System.out.println("[DEBUG] JwtAuthFilter processing request: " + request.getRequestURI());
         System.out.println("[DEBUG] Authorization header: " + (authHeader != null ? authHeader.substring(0, Math.min(20, authHeader.length())) + "..." : "null"));
@@ -34,23 +34,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
             try {
-                username = jwtUtil.getUsernameFromToken(token);
-                System.out.println("[DEBUG] Extracted username from token: " + username);
+                email = jwtUtil.getEmailFromToken(token);
+                System.out.println("[DEBUG] Extracted email from token: " + email);
             } catch (Exception e) {
-                System.out.println("[DEBUG] Error extracting username from token: " + e.getMessage());
+                System.out.println("[DEBUG] Error extracting email from token: " + e.getMessage());
             }
         } else if (authHeader != null && authHeader.startsWith("Bearer")) {
             // Handle case where there's no space after "Bearer"
             token = authHeader.substring(6);
             try {
-                username = jwtUtil.getUsernameFromToken(token);
-                System.out.println("[DEBUG] Extracted username from token (no space): " + username);
+                email = jwtUtil.getEmailFromToken(token);
+                System.out.println("[DEBUG] Extracted email from token (no space): " + email);
             } catch (Exception e) {
-                System.out.println("[DEBUG] Error extracting username from token: " + e.getMessage());
+                System.out.println("[DEBUG] Error extracting email from token: " + e.getMessage());
             }
         }
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
                 if (jwtUtil.validateToken(token)) {
                     String role = jwtUtil.getRoleFromToken(token);
@@ -60,7 +60,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     System.out.println("[DEBUG] Created authorities: " + authorities);
                     
                     org.springframework.security.core.userdetails.User principal =
-                        new org.springframework.security.core.userdetails.User(username, "", authorities);
+                        new org.springframework.security.core.userdetails.User(email, "", authorities);
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(principal, null, authorities);
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
